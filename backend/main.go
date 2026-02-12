@@ -1,11 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"lastfm-lyrics/cache"
 	"lastfm-lyrics/config"
+	"lastfm-lyrics/handlers"
 	"lastfm-lyrics/services"
 )
 
@@ -13,54 +17,55 @@ func main() {
 	cfg := config.Load()
 
 	if cfg.LastFMKey == "" {
-		log.Fatal("LASTFM_API_KEY is not set in .env")
+		log.Fatal("LASTFM_API_KEY is required. Set it in .env file.")
 	}
 
 	lyricsCache, err := cache.New(cfg.DBPath)
 	if err != nil {
-		log.Fatal("Cache error: ", err)
+		log.Fatalf("Cache init failed: %v", err)
 	}
 	defer lyricsCache.Close()
 
-	fmt.Println("Fetching tracks from Last.fm...")
-	lastfm := services.NewLastFM(cfg.LastFMKey)
+	total, found := lyricsCache.Stats()
+	log.Printf("Cache: %d entries, %d with lyrics", total, found)
 
-	tracks, totalScrobbles, err := lastfm.GetTracks(
-		"Poldvergos",
-		"2026-02-02",
-		"2026-02-12",
+	services.LoadStopWords(
+		"./data/stopwords-en.json",
+		"./data/stopwords-ru.json",
+		"./data/stopwords-custom.json",
 	)
-	if err != nil {
-		log.Fatal("Error: ", err)
-	}
 
-	fmt.Printf("Total scrobbles: %d, Unique tracks: %d\n\n", totalScrobbles, len(tracks))
+	h := handlers.New(cfg, lyricsCache)
 
-	testTracks := tracks
-	if len(testTracks) > 10 {
-		testTracks = testTracks[:10]
-	}
+	cors := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", cfg.AllowOrigins)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	fmt.Println("Searching lyrics for top 10 tracks...")
-	fmt.Println("──────────────────────────────────────")
-
-	lyricsSvc := services.NewLyrics(cfg.GeniusToken, lyricsCache)
-
-	lyricsMap := lyricsSvc.FetchAll(testTracks, 3, func(processed, found int, current string) {
-		fmt.Printf("  [%d/%d] found: %d | %s\n",
-			processed, len(testTracks), found, current)
-	})
-
-	fmt.Println("──────────────────────────────────────")
-	fmt.Printf("\nLyrics found: %d / %d\n\n", len(lyricsMap), len(testTracks))
-
-	for key, lyrics := range lyricsMap {
-		fmt.Printf("🎵 %s\n", key)
-		preview := lyrics
-		if len(preview) > 200 {
-			preview = preview[:200] + "..."
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(200)
+				return
+			}
+			next(w, r)
 		}
-		fmt.Printf("%s\n\n", preview)
-		break
 	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/analyze", cors(h.Analyze))
+	mux.HandleFunc("/api/status/", cors(h.Status))
+	mux.HandleFunc("/api/health", cors(h.Health))
+
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+		<-ch
+		log.Println("⏹️  Shutting down...")
+		lyricsCache.Close()
+		os.Exit(0)
+	}()
+
+	addr := ":" + cfg.Port
+	log.Printf("Server starting on http://localhost%s", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
 }

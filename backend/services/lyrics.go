@@ -90,22 +90,33 @@ func (s *Lyrics) fetchOne(artist, title string) (string, bool, string) {
 	}
 
 	if lyrics, ok := s.tryLrclib(artist, cleaned); ok {
-		log.Printf("[lyrics] ✅ lrclib: %s — %s", artist, cleaned)
-		s.cache.Set(artist, cleaned, lyrics, "lrclib", true)
-		return lyrics, true, "lrclib"
+		if isReasonableLyrics(lyrics) {
+			log.Printf("[lyrics] lrclib: %s — %s", artist, cleaned)
+			s.cache.Set(artist, cleaned, lyrics, "lrclib", true)
+			return lyrics, true, "lrclib"
+		}
+		log.Printf("[lyrics] lrclib text too long, skipping: %s — %s", artist, cleaned)
 	}
 
 	if s.geniusToken != "" {
 		if lyrics, ok := s.tryGenius(artist, cleaned); ok {
-			log.Printf("[lyrics] ✅ genius: %s — %s", artist, cleaned)
-			s.cache.Set(artist, cleaned, lyrics, "genius", true)
-			return lyrics, true, "genius"
+			if isReasonableLyrics(lyrics) {
+				log.Printf("[lyrics] genius: %s — %s", artist, cleaned)
+				s.cache.Set(artist, cleaned, lyrics, "genius", true)
+				return lyrics, true, "genius"
+			}
+			log.Printf("[lyrics] genius text too long, skipping: %s — %s", artist, cleaned)
 		}
 	}
 
-	log.Printf("[lyrics] ❌ not found: %s — %s", artist, cleaned)
+	log.Printf("[lyrics] not found: %s — %s", artist, cleaned)
 	s.cache.Set(artist, cleaned, "", "none", false)
 	return "", false, ""
+}
+
+func isReasonableLyrics(text string) bool {
+	wordCount := len(strings.Fields(text))
+	return wordCount >= 10 && wordCount <= 3000
 }
 
 type lrclibResult struct {
