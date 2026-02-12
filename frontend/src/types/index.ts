@@ -1,6 +1,7 @@
 export interface WordCount {
   word: string;
   count: number;
+  tracks: string[];
 }
 
 export interface TaskResult {

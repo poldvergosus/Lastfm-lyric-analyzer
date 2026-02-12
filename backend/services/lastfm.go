@@ -48,7 +48,7 @@ type lfmTrack struct {
 	} `json:"@attr"`
 }
 
-func (s *LastFM) GetTracks(username, from, to string) ([]models.Track, int, error) {
+func (s *LastFM) GetTracks(username, from, to string, maxTracks int) ([]models.Track, int, error) {
 
 	fromTs, err := toTimestamp(from)
 	if err != nil {
@@ -64,6 +64,8 @@ func (s *LastFM) GetTracks(username, from, to string) ([]models.Track, int, erro
 		title  string
 	}
 	var all []raw
+
+	seen := make(map[string]bool)
 
 	page := 1
 	totalPages := 1
@@ -113,20 +115,27 @@ func (s *LastFM) GetTracks(username, from, to string) ([]models.Track, int, erro
 			pageTracks = []lfmTrack{single}
 		}
 
-		for _, t := range pageTracks {
-
-			if t.Attr != nil && t.Attr.NowPlaying == "true" {
+		for _, track := range pageTracks {
+			if track.Attr != nil && track.Attr.NowPlaying == "true" {
 				continue
 			}
+			if track.Artist.Name != "" && track.Name != "" {
+				all = append(all, raw{track.Artist.Name, track.Name})
 
-			if t.Artist.Name != "" && t.Name != "" {
-				all = append(all, raw{t.Artist.Name, t.Name})
+				key := strings.ToLower(track.Artist.Name + "|||" + track.Name)
+				seen[key] = true
 			}
 		}
 
-		log.Printf("[lastfm] page %d/%d — %d tracks total", page, totalPages, len(all))
-		page++
+		log.Printf("[lastfm] page %d/%d — %d tracks, %d unique",
+			page, totalPages, len(all), len(seen))
 
+		if len(seen) >= maxTracks {
+			log.Printf("[lastfm] reached %d unique tracks, stopping early", maxTracks)
+			break
+		}
+
+		page++
 		time.Sleep(200 * time.Millisecond)
 	}
 
@@ -137,20 +146,19 @@ func (s *LastFM) GetTracks(username, from, to string) ([]models.Track, int, erro
 		title  string
 		count  int
 	}
-	seen := make(map[string]*counted)
+	counts := make(map[string]*counted)
 
 	for _, t := range all {
 		key := strings.ToLower(t.artist + "|||" + t.title)
-
-		if c, ok := seen[key]; ok {
+		if c, ok := counts[key]; ok {
 			c.count++
 		} else {
-			seen[key] = &counted{t.artist, t.title, 1}
+			counts[key] = &counted{t.artist, t.title, 1}
 		}
 	}
 
-	tracks := make([]models.Track, 0, len(seen))
-	for _, c := range seen {
+	tracks := make([]models.Track, 0, len(counts))
+	for _, c := range counts {
 		tracks = append(tracks, models.Track{
 			Artist:    c.artist,
 			Title:     c.title,
@@ -159,11 +167,21 @@ func (s *LastFM) GetTracks(username, from, to string) ([]models.Track, int, erro
 	}
 
 	sort.Slice(tracks, func(i, j int) bool {
-		return tracks[i].PlayCount > tracks[j].PlayCount
+		if tracks[i].PlayCount != tracks[j].PlayCount {
+			return tracks[i].PlayCount > tracks[j].PlayCount
+		}
+		if tracks[i].Artist != tracks[j].Artist {
+			return tracks[i].Artist < tracks[j].Artist
+		}
+		return tracks[i].Title < tracks[j].Title
 	})
 
-	log.Printf("[lastfm] %s: %d scrobbles, %d unique tracks",
-		username, totalScrobbles, len(tracks))
+	if len(tracks) > maxTracks {
+		tracks = tracks[:maxTracks]
+	}
+
+	log.Printf("[lastfm] %s: %d scrobbles, %d unique tracks (limited to %d)",
+		username, totalScrobbles, len(tracks), maxTracks)
 
 	return tracks, totalScrobbles, nil
 }

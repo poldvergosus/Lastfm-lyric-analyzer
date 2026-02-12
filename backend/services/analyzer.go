@@ -55,10 +55,11 @@ func loadOneFile(path string) int {
 	return count
 }
 
-func AnalyzeWords(lyricsSlice []string, excludeStop bool) ([]models.WordCount, int, int) {
+func AnalyzeWords(lyricsMap map[string]string, excludeStop bool) ([]models.WordCount, int, int) {
 	counts := make(map[string]int)
+	wordTracks := make(map[string]map[string]bool)
 
-	for _, text := range lyricsSlice {
+	for trackName, text := range lyricsMap {
 		text = sectionRe.ReplaceAllString(text, "")
 		words := wordRe.FindAllString(strings.ToLower(text), -1)
 
@@ -70,6 +71,11 @@ func AnalyzeWords(lyricsSlice []string, excludeStop bool) ([]models.WordCount, i
 				continue
 			}
 			counts[w]++
+
+			if wordTracks[w] == nil {
+				wordTracks[w] = make(map[string]bool)
+			}
+			wordTracks[w][trackName] = true
 		}
 	}
 
@@ -77,12 +83,25 @@ func AnalyzeWords(lyricsSlice []string, excludeStop bool) ([]models.WordCount, i
 	totalWords := 0
 
 	for word, count := range counts {
-		result = append(result, models.WordCount{Word: word, Count: count})
+		tracks := make([]string, 0, len(wordTracks[word]))
+		for track := range wordTracks[word] {
+			tracks = append(tracks, track)
+		}
+		sort.Strings(tracks)
+
+		result = append(result, models.WordCount{
+			Word:   word,
+			Count:  count,
+			Tracks: tracks,
+		})
 		totalWords += count
 	}
 
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Count > result[j].Count
+		if result[i].Count != result[j].Count {
+			return result[i].Count > result[j].Count
+		}
+		return result[i].Word < result[j].Word
 	})
 
 	if len(result) > 300 {

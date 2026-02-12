@@ -130,7 +130,7 @@ func (h *Handler) runAnalysis(taskID string, req models.AnalysisRequest) {
 		taskID, req.Username, req.From, req.To)
 
 	lastfm := services.NewLastFM(h.cfg.LastFMKey)
-	tracks, totalScrobbles, err := lastfm.GetTracks(req.Username, req.From, req.To)
+	tracks, totalScrobbles, err := lastfm.GetTracks(req.Username, req.From, req.To, req.MaxTracks)
 	if err != nil {
 		setError(err.Error())
 		return
@@ -139,10 +139,6 @@ func (h *Handler) runAnalysis(taskID string, req models.AnalysisRequest) {
 	if len(tracks) == 0 {
 		setError("No tracks found for this period")
 		return
-	}
-
-	if len(tracks) > req.MaxTracks {
-		tracks = tracks[:req.MaxTracks]
 	}
 
 	update(func(s *models.TaskStatus) {
@@ -172,12 +168,7 @@ func (h *Handler) runAnalysis(taskID string, req models.AnalysisRequest) {
 
 	update(func(s *models.TaskStatus) { s.Phase = "analyzing" })
 
-	allLyrics := make([]string, 0, len(lyricsMap))
-	for _, l := range lyricsMap {
-		allLyrics = append(allLyrics, l)
-	}
-
-	words, uniqueWords, totalWords := services.AnalyzeWords(allLyrics, req.ExcludeStopWords)
+	words, uniqueWords, totalWords := services.AnalyzeWords(lyricsMap, req.ExcludeStopWords)
 
 	update(func(s *models.TaskStatus) {
 		s.Phase = "done"

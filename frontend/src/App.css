@@ -10,6 +10,28 @@ body {
   color: #eee;
 }
 
+.lang-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  background: #222;
+  border: 1px solid #333;
+  color: #999;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 100;
+}
+
+.lang-toggle:hover {
+  border-color: #e94560;
+  color: #eee;
+}
+
 .app {
   max-width: 800px;
   margin: 0 auto;
@@ -18,12 +40,14 @@ body {
 
 h1 {
   text-align: center;
+  margin-top: 30px;
   margin-bottom: 30px;
   font-size: 1.8rem;
 }
 
 .form {
-  margin-bottom: 30px;
+  max-width: 500px;
+  margin: 0 auto 30px;
 }
 
 .form input[type="text"] {
@@ -155,12 +179,17 @@ button:disabled {
 
 .word {
   padding: 2px 8px;
-  cursor: default;
+  cursor: pointer;
   transition: transform 0.2s;
 }
 
 .word:hover {
   transform: scale(1.2);
+}
+
+.word-selected {
+  color: #e94560 !important;
+  text-decoration: underline;
 }
 
 .word-table {
@@ -201,4 +230,45 @@ button:disabled {
   background: #e94560;
   border-radius: 3px;
   min-width: 2px;
+}
+
+.track-list {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.track-list h3 {
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  color: #e94560;
+}
+
+.track-list ul {
+  list-style: none;
+}
+
+.track-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #222;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.track-list li:last-child {
+  border-bottom: none;
+}
+
+.table-row {
+  cursor: pointer;
+}
+
+.table-row:hover {
+  background: #1a1a1a;
+}
+
+.row-selected {
+  background: #1a1520 !important;
 }

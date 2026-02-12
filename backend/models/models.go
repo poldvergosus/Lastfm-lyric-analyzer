@@ -7,8 +7,9 @@ type Track struct {
 }
 
 type WordCount struct {
-	Word  string `json:"word"`
-	Count int    `json:"count"`
+	Word   string   `json:"word"`
+	Count  int      `json:"count"`
+	Tracks []string `json:"tracks"`
 }
 
 type AnalysisRequest struct {

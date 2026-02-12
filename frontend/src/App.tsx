@@ -3,31 +3,98 @@ import { useAnalysis } from "./hooks/useAnalysis";
 import type { WordCount } from "./types";
 import "./App.css";
 
+const translations = {
+  en: {
+    title: "Last.fm Lyrics Analyzer",
+    username: "Last.fm username",
+    from: "From",
+    to: "To",
+    maxTracks: "Max tracks",
+    analyze: "Analyze",
+    analyzing: "Analyzing...",
+    fetchingTracks: "Fetching tracks from Last.fm...",
+    fetchingLyrics: "Fetching lyrics",
+    found: "found",
+    analyzingWords: "Analyzing words...",
+    scrobbles: "Scrobbles",
+    tracks: "Tracks",
+    lyricsFound: "Lyrics found",
+    coverage: "Coverage",
+    uniqueWords: "Unique words",
+    word: "Word",
+    count: "Count",
+    tracksCol: "Tracks",
+    timesIn: "times in",
+    tracksLabel: "tracks:",
+  },
+  ru: {
+    title: "Анализ текстов Last.fm",
+    username: "Имя пользователя Last.fm",
+    from: "От",
+    to: "До",
+    maxTracks: "Макс. треков",
+    analyze: "Анализировать",
+    analyzing: "Анализируем...",
+    fetchingTracks: "Загружаем треки с Last.fm...",
+    fetchingLyrics: "Ищем тексты",
+    found: "найдено",
+    analyzingWords: "Анализируем слова...",
+    scrobbles: "Прослушиваний",
+    tracks: "Треков",
+    lyricsFound: "Текстов найдено",
+    coverage: "Покрытие",
+    uniqueWords: "Уникальных слов",
+    word: "Слово",
+    count: "Кол-во",
+    tracksCol: "Треки",
+    timesIn: "раз в",
+    tracksLabel: "треках:",
+  },
+};
+
+type Lang = "en" | "ru";
+
 function App() {
   const { state, result, run } = useAnalysis();
 
+  const [lang, setLang] = useState<Lang>("en");
   const [username, setUsername] = useState("");
   const [from, setFrom] = useState("2024-01-01");
   const [to, setTo] = useState(new Date().toISOString().split("T")[0]);
   const [maxTracks, setMaxTracks] = useState(200);
+  const [selectedWord, setSelectedWord] = useState<WordCount | null>(null);
 
+  const t = translations[lang];
   const isRunning = state.phase === "running";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (username.trim()) {
+      setSelectedWord(null);
       run(username.trim(), from, to, maxTracks);
     }
   };
 
+  const handleWordClick = (w: WordCount) => {
+    setSelectedWord(selectedWord?.word === w.word ? null : w);
+  };
+
   return (
-    <div className="app">
-      <h1>Last.fm Lyrics Analyzer</h1>
+    <div className={result || isRunning || state.phase === "error" ? "app" : "app-centered"}>
+      
+      <button
+        className="lang-toggle"
+        onClick={() => setLang(lang === "en" ? "ru" : "en")}
+      >
+        {lang === "en" ? "RU" : "EN"}
+      </button>
+
+      <h1>{t.title}</h1>
 
       <form onSubmit={handleSubmit} className="form">
         <input
           type="text"
-          placeholder="Last.fm username"
+          placeholder={t.username}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           disabled={isRunning}
@@ -35,7 +102,7 @@ function App() {
         />
         <div className="form-row">
           <label>
-            From
+            {t.from}
             <input
               type="date"
               value={from}
@@ -44,7 +111,7 @@ function App() {
             />
           </label>
           <label>
-            To
+            {t.to}
             <input
               type="date"
               value={to}
@@ -53,7 +120,7 @@ function App() {
             />
           </label>
           <label>
-            Max tracks
+            {t.maxTracks}
             <input
               type="number"
               value={maxTracks}
@@ -65,7 +132,7 @@ function App() {
           </label>
         </div>
         <button type="submit" disabled={isRunning || !username.trim()}>
-          {isRunning ? "Analyzing..." : "Analyze"}
+          {isRunning ? t.analyzing : t.analyze}
         </button>
       </form>
 
@@ -78,47 +145,46 @@ function App() {
             />
           </div>
           <p>
-            {state.backendPhase === "tracks" && "Fetching tracks from Last.fm..."}
+            {state.backendPhase === "tracks" && t.fetchingTracks}
             {state.backendPhase === "lyrics" &&
-              `Fetching lyrics: ${state.processedTracks}/${state.totalTracks} (found: ${state.lyricsFound})`}
-            {state.backendPhase === "analyzing" && "Analyzing words..."}
+              `${t.fetchingLyrics}: ${state.processedTracks}/${state.totalTracks} (${t.found}: ${state.lyricsFound})`}
+            {state.backendPhase === "analyzing" && t.analyzingWords}
           </p>
           {state.currentTrack && (
             <p className="current-track">{state.currentTrack}</p>
           )}
         </div>
       )}
-
-
       {state.phase === "error" && (
         <div className="error">{state.error}</div>
       )}
-
 
       {result && (
         <div className="results">
           <div className="stats">
             <div className="stat">
               <span className="stat-value">{result.total_scrobbles}</span>
-              <span className="stat-label">Scrobbles</span>
+              <span className="stat-label">{t.scrobbles}</span>
             </div>
             <div className="stat">
               <span className="stat-value">{result.unique_tracks}</span>
-              <span className="stat-label">Tracks</span>
+              <span className="stat-label">{t.tracks}</span>
             </div>
             <div className="stat">
               <span className="stat-value">{result.lyrics_found}</span>
-              <span className="stat-label">Lyrics found</span>
+              <span className="stat-label">{t.lyricsFound}</span>
             </div>
             <div className="stat">
               <span className="stat-value">
-                {Math.round((result.lyrics_found / result.unique_tracks) * 100)}%
+                {Math.round(
+                  (result.lyrics_found / result.unique_tracks) * 100
+                )}%
               </span>
-              <span className="stat-label">Coverage</span>
+              <span className="stat-label">{t.coverage}</span>
             </div>
             <div className="stat">
               <span className="stat-value">{result.total_unique_words}</span>
-              <span className="stat-label">Unique words</span>
+              <span className="stat-label">{t.uniqueWords}</span>
             </div>
           </div>
 
@@ -127,12 +193,14 @@ function App() {
               const max = result.words[0].count;
               const size = 14 + (w.count / max) * 36;
               const opacity = 0.4 + (w.count / max) * 0.6;
+              const isSelected = selectedWord?.word === w.word;
               return (
                 <span
                   key={w.word}
-                  className="word"
-                  style={{ fontSize: `${size}px`, opacity }}
+                  className={`word ${isSelected ? "word-selected" : ""}`}
+                  style={{ fontSize: `${size}px`, opacity: isSelected ? 1 : opacity }}
                   title={`${w.word}: ${w.count}`}
+                  onClick={() => handleWordClick(w)}
                 >
                   {w.word}
                 </span>
@@ -140,21 +208,41 @@ function App() {
             })}
           </div>
 
+          {selectedWord && (
+            <div className="track-list">
+              <h3>
+                "{selectedWord.word}" — {selectedWord.count} {t.timesIn}{" "}
+                {selectedWord.tracks.length} {t.tracksLabel}
+              </h3>
+              <ul>
+                {selectedWord.tracks.map((track) => (
+                  <li key={track}>{track}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <table className="word-table">
             <thead>
               <tr>
                 <th>#</th>
-                <th>Word</th>
-                <th>Count</th>
+                <th>{t.word}</th>
+                <th>{t.count}</th>
+                <th>{t.tracksCol}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {result.words.slice(0, 50).map((w: WordCount, i: number) => (
-                <tr key={w.word}>
+                <tr
+                  key={w.word}
+                  className={`table-row ${selectedWord?.word === w.word ? "row-selected" : ""}`}
+                  onClick={() => handleWordClick(w)}
+                >
                   <td>{i + 1}</td>
                   <td>{w.word}</td>
                   <td>{w.count}</td>
+                  <td>{w.tracks.length}</td>
                   <td>
                     <div
                       className="bar"
