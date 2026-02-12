@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"lastfm-lyrics/cache"
 	"lastfm-lyrics/config"
 	"lastfm-lyrics/services"
 )
@@ -15,31 +16,51 @@ func main() {
 		log.Fatal("LASTFM_API_KEY is not set in .env")
 	}
 
-	fmt.Println("API key loaded, fetching tracks...")
+	lyricsCache, err := cache.New(cfg.DBPath)
+	if err != nil {
+		log.Fatal("Cache error: ", err)
+	}
+	defer lyricsCache.Close()
 
+	fmt.Println("Fetching tracks from Last.fm...")
 	lastfm := services.NewLastFM(cfg.LastFMKey)
 
 	tracks, totalScrobbles, err := lastfm.GetTracks(
 		"Poldvergos",
-		"2026-01-01",
 		"2026-02-02",
+		"2026-02-12",
 	)
 	if err != nil {
 		log.Fatal("Error: ", err)
 	}
 
-	fmt.Printf("\nTotal scrobbles: %d\n", totalScrobbles)
-	fmt.Printf("Unique tracks: %d\n\n", len(tracks))
+	fmt.Printf("Total scrobbles: %d, Unique tracks: %d\n\n", totalScrobbles, len(tracks))
 
-	limit := 20
-	if len(tracks) < limit {
-		limit = len(tracks)
+	testTracks := tracks
+	if len(testTracks) > 10 {
+		testTracks = testTracks[:10]
 	}
 
-	fmt.Println("Top tracks:")
-	for i := 0; i < limit; i++ {
-		t := tracks[i]
-		fmt.Printf("  %d. %s — %s (%d plays)\n",
-			i+1, t.Artist, t.Title, t.PlayCount)
+	fmt.Println("Searching lyrics for top 10 tracks...")
+	fmt.Println("──────────────────────────────────────")
+
+	lyricsSvc := services.NewLyrics(cfg.GeniusToken, lyricsCache)
+
+	lyricsMap := lyricsSvc.FetchAll(testTracks, 3, func(processed, found int, current string) {
+		fmt.Printf("  [%d/%d] found: %d | %s\n",
+			processed, len(testTracks), found, current)
+	})
+
+	fmt.Println("──────────────────────────────────────")
+	fmt.Printf("\nLyrics found: %d / %d\n\n", len(lyricsMap), len(testTracks))
+
+	for key, lyrics := range lyricsMap {
+		fmt.Printf("🎵 %s\n", key)
+		preview := lyrics
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		fmt.Printf("%s\n\n", preview)
+		break
 	}
 }

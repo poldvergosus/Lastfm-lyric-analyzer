@@ -29,7 +29,7 @@ func NewLastFM(apiKey string) *LastFM {
 
 type lfmResponse struct {
 	RecentTracks struct {
-		Tracks []lfmTrack `json:"track"`
+		Tracks json.RawMessage `json:"track"`
 		Attr   struct {
 			TotalPages string `json:"totalPages"`
 		} `json:"@attr"`
@@ -102,7 +102,18 @@ func (s *LastFM) GetTracks(username, from, to string) ([]models.Track, int, erro
 		tp, _ := strconv.Atoi(data.RecentTracks.Attr.TotalPages)
 		totalPages = tp
 
-		for _, t := range data.RecentTracks.Tracks {
+		var pageTracks []lfmTrack
+		if err := json.Unmarshal(data.RecentTracks.Tracks, &pageTracks); err != nil {
+			var single lfmTrack
+			if err2 := json.Unmarshal(data.RecentTracks.Tracks, &single); err2 != nil {
+				log.Printf("[lastfm] warning: could not parse tracks on page %d", page)
+				page++
+				continue
+			}
+			pageTracks = []lfmTrack{single}
+		}
+
+		for _, t := range pageTracks {
 
 			if t.Attr != nil && t.Attr.NowPlaying == "true" {
 				continue
