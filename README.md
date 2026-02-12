@@ -1,2 +1,2 @@
-# Lyric-scraper
+# Lastfm-lyric-analyzer
 
