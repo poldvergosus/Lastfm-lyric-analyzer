@@ -55,6 +55,8 @@ const translations = {
 type Lang = "en" | "ru";
 
 function App() {
+  const { state, result, run } = useAnalysis();
+
   const [lang, setLang] = useState<Lang>("en");
   const [username, setUsername] = useState("");
   const [from, setFrom] = useState("2024-01-01");
@@ -63,21 +65,15 @@ function App() {
   const [selectedWord, setSelectedWord] = useState<WordCount | null>(null);
   const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
   const [view, setView] = useState<"cloud" | "table">("cloud");
-   const { state, result, run, runArtist } = useAnalysis();
-  const [mode, setMode] = useState<"user" | "artist">("user");
-  const [artistName, setArtistName] = useState("");
 
   const t = translations[lang];
   const isRunning = state.phase === "running";
 
- const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSelectedWord(null);
-    setExpandedTrack(null);
-    if (mode === "user" && username.trim()) {
-      run(username.trim(), from, to, maxTracks, lang);
-    } else if (mode === "artist" && artistName.trim()) {
-      runArtist(artistName.trim(), maxTracks, lang);
+    if (username.trim()) {
+      setSelectedWord(null);
+      run(username.trim(), from, to, maxTracks);
     }
   };
 
@@ -109,98 +105,47 @@ function App() {
 
       <h1>{t.title}</h1>
 
-           <form onSubmit={handleSubmit} className="form">
-        <div className="mode-toggle">
-          <button
-            type="button"
-            className={mode === "user" ? "active" : ""}
-            onClick={() => setMode("user")}
-            disabled={isRunning}
-          >
-            {lang === "ru" ? "Пользователь" : "User"}
-          </button>
-          <button
-            type="button"
-            className={mode === "artist" ? "active" : ""}
-            onClick={() => setMode("artist")}
-            disabled={isRunning}
-          >
-            {lang === "ru" ? "Артист" : "Artist"}
-          </button>
+      <form onSubmit={handleSubmit} className="form">
+        <input
+          type="text"
+          placeholder={t.username}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          disabled={isRunning}
+          required
+        />
+        <div className="form-row">
+          <label>
+            {t.from}
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              disabled={isRunning}
+            />
+          </label>
+          <label>
+            {t.to}
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              disabled={isRunning}
+            />
+          </label>
+          <label>
+            {t.maxTracks}
+            <input
+              type="number"
+              value={maxTracks}
+              onChange={(e) => setMaxTracks(Number(e.target.value))}
+              disabled={isRunning}
+              min={10}
+              max={2000}
+            />
+          </label>
         </div>
-
-        {mode === "user" ? (
-          <>
-            <input
-              type="text"
-              placeholder={t.username}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isRunning}
-              required
-            />
-            <div className="form-row">
-              <label>
-                {t.from}
-                <input
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  disabled={isRunning}
-                />
-              </label>
-              <label>
-                {t.to}
-                <input
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  disabled={isRunning}
-                />
-              </label>
-              <label>
-                {t.maxTracks}
-                <input
-                  type="number"
-                  value={maxTracks}
-                  onChange={(e) => setMaxTracks(Number(e.target.value))}
-                  disabled={isRunning}
-                  min={10}
-                  max={2000}
-                />
-              </label>
-            </div>
-          </>
-        ) : (
-          <>
-            <input
-              type="text"
-              placeholder={lang === "ru" ? "Название группы / артиста" : "Band / artist name"}
-              value={artistName}
-              onChange={(e) => setArtistName(e.target.value)}
-              disabled={isRunning}
-              required
-            />
-            <div className="form-row">
-              <label>
-                {t.maxTracks}
-                <input
-                  type="number"
-                  value={maxTracks}
-                  onChange={(e) => setMaxTracks(Number(e.target.value))}
-                  disabled={isRunning}
-                  min={10}
-                  max={500}
-                />
-              </label>
-            </div>
-          </>
-        )}
-
-        <button
-          type="submit"
-          disabled={isRunning || (mode === "user" ? !username.trim() : !artistName.trim())}
-        >
+        <button type="submit" disabled={isRunning || !username.trim()}>
           {isRunning ? t.analyzing : t.analyze}
         </button>
       </form>
