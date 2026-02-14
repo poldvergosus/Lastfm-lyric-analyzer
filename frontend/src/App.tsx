@@ -64,6 +64,7 @@ function App() {
   const [maxTracks, setMaxTracks] = useState(200);
   const [selectedWord, setSelectedWord] = useState<WordCount | null>(null);
   const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
+  const [view, setView] = useState<"cloud" | "table">("cloud");
 
   const t = translations[lang];
   const isRunning = state.phase === "running";
@@ -201,27 +202,44 @@ function App() {
             </div>
           </div>
 
-          <div className="word-cloud">
-            {result.words.slice(0, 80).map((w: WordCount) => {
-              const max = result.words[0].count;
-              const size = 14 + (w.count / max) * 36;
-              const opacity = 0.4 + (w.count / max) * 0.6;
-              const isSelected = selectedWord?.word === w.word;
-              return (
-                <span
-                  key={w.word}
-                  className={`word ${isSelected ? "word-selected" : ""}`}
-                  style={{ fontSize: `${size}px`, opacity: isSelected ? 1 : opacity }}
-                  title={`${w.word}: ${w.count}`}
-                  onClick={() => handleWordClick(w)}
-                >
-                  {w.word}
-                </span>
-              );
-            })}
+  <div className="view-toggle">
+            <button
+              className={view === "cloud" ? "active" : ""}
+              onClick={() => setView("cloud")}
+            >
+              {lang === "ru" ? "Облако" : "Cloud"}
+            </button>
+            <button
+              className={view === "table" ? "active" : ""}
+              onClick={() => setView("table")}
+            >
+              {lang === "ru" ? "Таблица" : "Table"}
+            </button>
           </div>
 
-            {selectedWord && (
+          {view === "cloud" && (
+            <div className="word-cloud">
+              {result.words.slice(0, 80).map((w: WordCount) => {
+                const max = result.words[0].count;
+                const size = 14 + (w.count / max) * 36;
+                const opacity = 0.4 + (w.count / max) * 0.6;
+                const isSelected = selectedWord?.word === w.word;
+                return (
+                  <span
+                    key={w.word}
+                    className={`word ${isSelected ? "word-selected" : ""}`}
+                    style={{ fontSize: `${size}px`, opacity: isSelected ? 1 : opacity }}
+                    title={`${w.word}: ${w.count}`}
+                    onClick={() => handleWordClick(w)}
+                  >
+                    {w.word}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedWord && (
             <div className="track-list">
               <h3>
                 "{selectedWord.word}" — {selectedWord.count} {t.timesIn}{" "}
@@ -260,39 +278,41 @@ function App() {
             </div>
           )}
 
-          <table className="word-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>{t.word}</th>
-                <th>{t.count}</th>
-                <th>{t.tracksCol}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.words.slice(0, 50).map((w: WordCount, i: number) => (
-                <tr
-                  key={w.word}
-                  className={`table-row ${selectedWord?.word === w.word ? "row-selected" : ""}`}
-                  onClick={() => handleWordClick(w)}
-                >
-                  <td>{i + 1}</td>
-                  <td>{w.word}</td>
-                  <td>{w.count}</td>
-                  <td>{w.tracks.length}</td>
-                  <td>
-                    <div
-                      className="bar"
-                      style={{
-                        width: `${(w.count / result.words[0].count) * 100}%`,
-                      }}
-                    />
-                  </td>
+          {view === "table" && (
+            <table className="word-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{t.word}</th>
+                  <th>{t.count}</th>
+                  <th>{t.tracksCol}</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {result.words.slice(0, 50).map((w: WordCount, i: number) => (
+                  <tr
+                    key={w.word}
+                    className={`table-row ${selectedWord?.word === w.word ? "row-selected" : ""}`}
+                    onClick={() => handleWordClick(w)}
+                  >
+                    <td>{i + 1}</td>
+                    <td>{w.word}</td>
+                    <td>{w.count}</td>
+                    <td>{w.tracks.length}</td>
+                    <td>
+                      <div
+                        className="bar"
+                        style={{
+                          width: `${(w.count / result.words[0].count) * 100}%`,
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>
