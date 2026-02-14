@@ -55,6 +55,7 @@ func main() {
 	mux.HandleFunc("/api/analyze", cors(h.Analyze))
 	mux.HandleFunc("/api/status/", cors(h.Status))
 	mux.HandleFunc("/api/health", cors(h.Health))
+	mux.HandleFunc("/api/analyze-artist", cors(h.AnalyzeArtist))
 
 	go func() {
 		ch := make(chan os.Signal, 1)

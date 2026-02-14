@@ -42,3 +42,10 @@ type TaskResult struct {
 	Words            []WordCount       `json:"words"`
 	Lyrics           map[string]string `json:"lyrics,omitempty"`
 }
+
+type ArtistAnalysisRequest struct {
+	Artist           string `json:"artist"`
+	MaxTracks        int    `json:"max_tracks"`
+	ExcludeStopWords bool   `json:"exclude_stop_words"`
+	Lang             string `json:"lang"`
+}

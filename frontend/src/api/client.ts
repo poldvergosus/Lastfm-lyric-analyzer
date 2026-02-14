@@ -4,7 +4,8 @@ export async function startAnalysis(
   username: string,
   from: string,
   to: string,
-  maxTracks: number = 500
+  maxTracks: number = 500,
+  lang: string = "en" 
 ): Promise<string> {
   const resp = await fetch(`${API_URL}/api/analyze`, {
     method: "POST",
@@ -14,6 +15,31 @@ export async function startAnalysis(
       from,
       to,
       max_tracks: maxTracks,
+      lang, 
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error || "Request failed");
+  }
+
+  const data = await resp.json();
+  return data.task_id;
+}
+
+export async function startArtistAnalysis(
+  artist: string,
+  maxTracks: number = 200,
+  lang: string = "en"
+): Promise<string> {
+  const resp = await fetch(`${API_URL}/api/analyze-artist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      artist,
+      max_tracks: maxTracks,
+      lang,
     }),
   });
 

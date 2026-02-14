@@ -203,3 +203,135 @@ func extractLastSegment(path string) string {
 	}
 	return path[i+1:]
 }
+
+func (h *Handler) AnalyzeArtist(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, 405, map[string]string{"error": "POST only"})
+		return
+	}
+
+	var req models.ArtistAnalysisRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, 400, map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	if req.Artist == "" {
+		writeJSON(w, 400, map[string]string{"error": "artist is required"})
+		return
+	}
+
+	if req.MaxTracks == 0 {
+		req.MaxTracks = 200
+	}
+	req.ExcludeStopWords = true
+
+	taskID := fmt.Sprintf("%x", md5.Sum(
+		[]byte("artist_"+req.Artist),
+	))
+
+	h.tasksMu.RLock()
+	existing, exists := h.tasks[taskID]
+	h.tasksMu.RUnlock()
+
+	if exists {
+		switch existing.Phase {
+		case "tracks", "lyrics", "analyzing":
+			writeJSON(w, 200, map[string]string{
+				"task_id": taskID,
+				"status":  "already_running",
+			})
+			return
+		}
+	}
+
+	h.tasksMu.Lock()
+	h.tasks[taskID] = &models.TaskStatus{ID: taskID, Phase: "pending"}
+	h.tasksMu.Unlock()
+
+	go h.runArtistAnalysis(taskID, req)
+
+	writeJSON(w, 200, map[string]string{"task_id": taskID})
+}
+
+func (h *Handler) runArtistAnalysis(taskID string, req models.ArtistAnalysisRequest) {
+	update := func(fn func(*models.TaskStatus)) {
+		h.tasksMu.Lock()
+		if s, ok := h.tasks[taskID]; ok {
+			fn(s)
+		}
+		h.tasksMu.Unlock()
+	}
+
+	setError := func(msg string) {
+		update(func(s *models.TaskStatus) {
+			s.Phase = "error"
+			s.Error = msg
+		})
+	}
+
+	update(func(s *models.TaskStatus) { s.Phase = "tracks" })
+
+	mb := services.NewMusicBrainz()
+
+	artistID, artistName, err := mb.FindArtist(req.Artist)
+	if err != nil {
+		setError(err.Error())
+		return
+	}
+
+	tracks, err := mb.GetDiscography(artistID, artistName, req.MaxTracks)
+	if err != nil {
+		setError(err.Error())
+		return
+	}
+
+	if len(tracks) == 0 {
+		setError("No tracks found for this artist")
+		return
+	}
+
+	update(func(s *models.TaskStatus) {
+		s.TotalTracks = len(tracks)
+	})
+
+	update(func(s *models.TaskStatus) { s.Phase = "lyrics" })
+
+	lyricsSvc := services.NewLyrics(h.cfg.GeniusToken, h.cache)
+
+	lyricsMap := lyricsSvc.FetchAll(tracks, 10, func(processed, found int, current string) {
+		update(func(s *models.TaskStatus) {
+			s.ProcessedTracks = processed
+			s.LyricsFound = found
+			s.Progress = processed * 100 / len(tracks)
+			s.CurrentTrack = current
+		})
+	})
+
+	if len(lyricsMap) == 0 {
+		setError("Could not find lyrics for any track")
+		return
+	}
+
+	update(func(s *models.TaskStatus) { s.Phase = "analyzing" })
+
+	words, uniqueWords, totalWords := services.AnalyzeWords(lyricsMap, req.ExcludeStopWords)
+
+	update(func(s *models.TaskStatus) {
+		s.Phase = "done"
+		s.Progress = 100
+		s.Result = &models.TaskResult{
+			TotalScrobbles:   0,
+			UniqueTracks:     len(tracks),
+			LyricsFound:      len(lyricsMap),
+			LyricsMissing:    len(tracks) - len(lyricsMap),
+			TotalUniqueWords: uniqueWords,
+			TotalWordCount:   totalWords,
+			Words:            words,
+			Lyrics:           lyricsMap,
+		}
+	})
+
+	log.Printf("[task:%s] ✅ artist %s done! %d tracks, top word: %s (%d)",
+		taskID, artistName, len(tracks), words[0].Word, words[0].Count)
+}
