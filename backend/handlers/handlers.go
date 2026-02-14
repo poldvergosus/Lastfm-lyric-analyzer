@@ -181,6 +181,7 @@ func (h *Handler) runAnalysis(taskID string, req models.AnalysisRequest) {
 			TotalUniqueWords: uniqueWords,
 			TotalWordCount:   totalWords,
 			Words:            words,
+			Lyrics:           lyricsMap,
 		}
 	})
 

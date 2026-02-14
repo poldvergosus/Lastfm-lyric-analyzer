@@ -12,6 +12,7 @@ export interface TaskResult {
   total_unique_words: number;
   total_word_count: number;
   words: WordCount[];
+  lyrics?: Record<string, string>;
 }
 
 export interface TaskStatus {
@@ -25,3 +26,4 @@ export interface TaskStatus {
   error?: string;
   result?: TaskResult;
 }
+

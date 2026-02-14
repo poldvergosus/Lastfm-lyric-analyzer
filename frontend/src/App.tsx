@@ -63,6 +63,7 @@ function App() {
   const [to, setTo] = useState(new Date().toISOString().split("T")[0]);
   const [maxTracks, setMaxTracks] = useState(200);
   const [selectedWord, setSelectedWord] = useState<WordCount | null>(null);
+  const [expandedTrack, setExpandedTrack] = useState<string | null>(null);
 
   const t = translations[lang];
   const isRunning = state.phase === "running";
@@ -77,6 +78,18 @@ function App() {
 
   const handleWordClick = (w: WordCount) => {
     setSelectedWord(selectedWord?.word === w.word ? null : w);
+  };
+
+    const highlightWord = (line: string, word: string) => {
+    const regex = new RegExp(`(${word})`, "gi");
+    const parts = line.split(regex);
+    return parts.map((part, i) =>
+      part.toLowerCase() === word.toLowerCase() ? (
+        <mark key={i}>{part}</mark>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
   };
 
   return (
@@ -208,7 +221,7 @@ function App() {
             })}
           </div>
 
-          {selectedWord && (
+            {selectedWord && (
             <div className="track-list">
               <h3>
                 "{selectedWord.word}" — {selectedWord.count} {t.timesIn}{" "}
@@ -216,7 +229,32 @@ function App() {
               </h3>
               <ul>
                 {selectedWord.tracks.map((track) => (
-                  <li key={track}>{track}</li>
+                  <li key={track}>
+                    <div
+                      className="track-name"
+                      onClick={() =>
+                        setExpandedTrack(
+                          expandedTrack === track ? null : track
+                        )
+                      }
+                    >
+                      {track}
+                      {result.lyrics?.[track] && (
+                        <span className="expand-icon">
+                          {expandedTrack === track ? "▲" : "▼"}
+                        </span>
+                      )}
+                    </div>
+                    {expandedTrack === track && result.lyrics?.[track] && (
+                      <div className="track-lyrics">
+                        {result.lyrics[track].split("\n").map((line, i) => (
+                          <p key={i}>
+                            {highlightWord(line, selectedWord.word)}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>

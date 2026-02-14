@@ -272,3 +272,42 @@ button:disabled {
 .row-selected {
   background: #1a1520 !important;
 }
+
+.track-name {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.track-name:hover {
+  color: #e94560;
+}
+
+.expand-icon {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.track-lyrics {
+  margin-top: 8px;
+  padding: 12px;
+  background: #111;
+  border-radius: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.track-lyrics p {
+  font-size: 0.85rem;
+  color: #999;
+  line-height: 1.5;
+  margin-bottom: 2px;
+}
+
+mark {
+  background: #e94560;
+  color: #fff;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
